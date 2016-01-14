@@ -63,7 +63,7 @@ tools_go() {
 }
 
 users_go() {
-	useradd -m -G www-data ontar026
+	useradd -m -G www-data -s /bin/bash ontar026
     curl -s -o ${wp_cli_phar} https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
 }
 
@@ -83,7 +83,7 @@ apache_go() {
     ServerName www.ontarioaccesscoalition.com
 
     ServerAdmin prof.lam@gmail.com
-    DocumentRoot /home/ontar026/public_html/
+    AllowOverride All
 
     # Available loglevels: trace8, ..., trace1, debug, info, notice, warn,
     # error, crit, alert, emerg.
@@ -91,8 +91,8 @@ apache_go() {
     # modules, e.g.
     #LogLevel info ssl:warn
 
-    ErrorLog ${APACHE_LOG_DIR}/error.log
-    CustomLog ${APACHE_LOG_DIR}/access.log combined
+    ErrorLog \${APACHE_LOG_DIR}/error.log
+    CustomLog \${APACHE_LOG_DIR}/access.log combined
 
     # For most configuration files from conf-available/, which are
     # enabled or disabled at a global level, it is possible to
@@ -103,6 +103,14 @@ apache_go() {
 </VirtualHost>
 
 # vim: syntax=apache ts=4 sw=4 sts=4 sr noet
+EOF
+
+    cat <<EOF >> /etc/apache2/apache2.conf
+<Directory /home/ontar026/public_html>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+</Directory>
 EOF
 
 	a2dissite 000-default
