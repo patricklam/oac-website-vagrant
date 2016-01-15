@@ -43,6 +43,8 @@ update_go() {
 	sed -i "s/jessie main\$/jessie main contrib non-free/g" /etc/apt/sources.list
 	sed -i "s/updates main\$/updates main contrib non-free/g" /etc/apt/sources.list
 	apt-get update
+
+    # comment out these lines if not using Vagrant debian image
     echo "set grub-pc/install_devices /dev/sda" | debconf-communicate
     sed -i "s/GRUB_TIMEOUT=0/GRUB_TIMEOUT=5/g" /etc/default/grub
 	apt-get -y -qq -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade
@@ -83,7 +85,6 @@ apache_go() {
     ServerName www.ontarioaccesscoalition.com
 
     ServerAdmin prof.lam@gmail.com
-    AllowOverride All
 
     # Available loglevels: trace8, ..., trace1, debug, info, notice, warn,
     # error, crit, alert, emerg.
