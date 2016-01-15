@@ -85,6 +85,7 @@ apache_go() {
     ServerName www.ontarioaccesscoalition.com
 
     ServerAdmin prof.lam@gmail.com
+    DocumentRoot /home/ontar026/public_html/
 
     # Available loglevels: trace8, ..., trace1, debug, info, notice, warn,
     # error, crit, alert, emerg.
