@@ -34,3 +34,63 @@ CiviCRM installation notes
 - import: can't figure out how to import join date with CiviCRM 4.6
    * need to change Ontario to ON? no, that doesn't work, but can manually adjust
 
+Limesurvey installation notes
+=============================
+
+$ adduser limesurvey
+$ su - limesurvey
+$ mkdir store
+$ cd store
+$ wget "https://www.limesurvey.org/en/stable-release?download=1413:limesurvey206plus-build151215tarbz2"
+$ mv stable-release\?download\=1413\:limesurvey206plus-build151215tarbz2 limesurvey206plus-build151215.tar.bz2
+$ mkdir ~/public_html
+$ cd ../public_html
+$ tar xjvf ../store/limesurvey206plus-build151215.tar.bz2
+$ chgrp -R www-data .
+$ chmod -R g+w .
+
+
+running as oac-survey.patricklam.ca, set up 002-limesurvey.conf
+<VirtualHost *:80>
+	# The ServerName directive sets the request scheme, hostname and port that
+	# the server uses to identify itself. This is used when creating
+	# redirection URLs. In the context of virtual hosts, the ServerName
+	# specifies what hostname must appear in the request's Host: header to
+	# match this virtual host. For the default virtual host (this file) this
+	# value is not decisive as it is used as a last resort host regardless.
+	# However, you must set it for any further virtual host explicitly.
+	ServerName oac-survey.patricklam.ca
+
+	ServerAdmin prof.lam@gmail.com
+	DocumentRoot /home/limesurvey/public_html/limesurvey/
+
+	# Available loglevels: trace8, ..., trace1, debug, info, notice, warn,
+	# error, crit, alert, emerg.
+	# It is also possible to configure the loglevel for particular
+	# modules, e.g.
+	#LogLevel info ssl:warn
+
+	ErrorLog ${APACHE_LOG_DIR}/error.log
+	CustomLog ${APACHE_LOG_DIR}/access.log combined
+
+	# For most configuration files from conf-available/, which are
+	# enabled or disabled at a global level, it is possible to
+	# include a line for only one particular virtual host. For example the
+	# following line enables the CGI configuration for this host only
+	# after it has been globally disabled with "a2disconf".
+	#Include conf-available/serve-cgi-bin.conf
+</VirtualHost>
+
+<Directory /home/limesurvey/public_html/limesurvey>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+</Directory>
+
+# vim: syntax=apache ts=4 sw=4 sts=4 sr noet
+
+$ a2ensite 002-limesurvey
+$ service apache2 reload
+$ sudo apt-get install php5-gd php5-imap
+$ mysql -u root -p
+mysql> CREATE USER 'limesurvey'@'localhost' IDENTIFIED BY <pw>;
