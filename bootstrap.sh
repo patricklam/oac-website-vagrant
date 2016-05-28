@@ -9,6 +9,11 @@ proftpd_config_file="/etc/proftpd/proftpd.conf"
 proftpd_rsa_pem="/etc/proftpd/ftpd-rsa.pem"
 proftpd_rsa_key_pem="/etc/proftpd/ftpd-rsa-key.pem"
 wp_cli_phar="/home/ontar026/wp-cli.phar"
+postfix_main_cf="/etc/postfix/main.cf"
+postfix_virtual="/etc/postfix/virtual"
+postfix_header_checks="/etc/postfix/header_checks"
+postfix_local="/etc/postfix/local.cf"
+spamassassin="/etc/default/spamassassin"
 
 # This function is called at the very bottom of the file
 main() {
@@ -29,6 +34,7 @@ EOD
 
     network_go
     tools_go
+    mail_go
     users_go
     apache_go
     php_go
@@ -62,6 +68,123 @@ tools_go() {
     apt-get -y install build-essential binutils-doc git emacs24-nox unzip curl
 
     apt-get -y install dkms virtualbox-guest-utils 
+}
+
+mail_go() {
+    apt-get -y install postfix spamassassin spamd postsrsd
+
+    cat << EOF > ${postfix_main_cf}
+# See /usr/share/postfix/main.cf.dist for a commented, more complete version
+
+
+# Debian specific:  Specifying a file name will cause the first
+# line of that file to be used as the name.  The Debian default
+# is /etc/mailname.
+#myorigin = /etc/mailname
+
+smtpd_banner = $myhostname ESMTP $mail_name (Debian/GNU)
+biff = no
+
+# appending .domain is the MUA's job.
+append_dot_mydomain = no
+
+# Uncomment the next line to generate "delayed mail" warnings
+#delay_warning_time = 4h
+
+readme_directory = no
+
+# TLS parameters
+smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+smtpd_use_tls=yes
+smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
+smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
+
+# See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for
+# information on enabling SSL in the smtp client.
+
+alias_maps = hash:/etc/aliases
+alias_database = hash:/etc/aliases
+myorigin = /etc/mailname
+mydestination = localhost, localhost.localdomain, localhost
+relayhost = 
+mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
+mailbox_size_limit = 0
+recipient_delimiter = +
+inet_interfaces = all
+inet_protocols = all
+
+virtual_alias_domains = ontarioaccesscoalition.com
+virtual_alias_maps = hash:/etc/postfix/virtual
+
+# spam
+smtpd_client_restrictions = permit_mynetworks permit_sasl_authenticated reject_unauth_destination reject_rbl_client zen.spamhaus.org reject_rbl_client bl.spamcop.net reject_rbl_client cbl.abuseat.org reject_unknown_client permit
+header_checks = regexp:/etc/postfix/header_checks
+EOF
+    cat << EOF > ${postfix_virtual}
+webmaster@ontarioaccesscoalition.com prof.lam@gmail.com
+info@ontarioaccesscoalition.com akolos@hotmail.com laura.alexis.banks@gmail.com mprisner@gmail.com prof.lam@gmail.com tony.berlier@sympatico.ca
+
+chair@ontarioaccesscoalition.com tony.berlier@sympatico.ca
+climbingaccess@ontarioaccesscoalition.com chair@ontarioaccesscoalition.com
+membership@ontarioaccesscoalition.com chair@ontarioaccesscoalition.com
+oac@ontarioaccesscoalition.com chair@ontarioaccesscoalition.com akolos@hotmail.com
+tony.berlier@ontarioaccesscoalition.com tony.berlier@sympatico.ca
+treasurer@ontarioaccesscoalition.com akolos@hotmail.com
+volunteer@ontarioaccesscoalition.com mprisnr@gmail.com
+oacapproved@ontarioaccesscoalition.com akolos@hotmail.com
+EOF
+    cat << EOF > ${postfix_header_checks}
+/^X-Spam-Level: \*{5,}.*/ DISCARD spam
+EOF
+    cat << EOF > ${postfix_local}
+rewrite_header Subject *****SPAM*****
+EOF
+
+    groupadd spamd
+    useradd -g spamd -s /bin/false -d /var/log/spamassassin spamd
+    mkdir /var/log/spamassassin
+    chown spamd:spamd /var/log/spamassassin
+
+    cat << EOF > ${spamassassin}
+# /etc/default/spamassassin
+# Duncan Findlay
+
+# WARNING: please read README.spamd before using.
+# There may be security risks.
+
+# If you're using systemd (default for jessie), the ENABLED setting is
+# not used. Instead, enable spamd by issuing:
+# systemctl enable spamassassin.service
+# Change to "1" to enable spamd on systems using sysvinit:
+ENABLED=1
+
+# Options
+# See man spamd for possible options. The -d option is automatically added.
+
+# SpamAssassin uses a preforking model, so be careful! You need to
+# make sure --max-children is not set to anything higher than 5,
+# unless you know what you're doing.
+
+SAHOME="/var/log/spamassassin"
+OPTIONS="--create-prefs --max-children 5 --helper-home-dir --username spamd -H ${SAHOME} -s ${SAHOME}spamd.log"
+
+# Pid file
+# Where should spamd write its PID to file? If you use the -u or
+# --username option above, this needs to be writable by that user.
+# Otherwise, the init script will not be able to shut spamd down.
+PIDFILE="/var/run/spamd.pid"
+
+# Set nice level of spamd
+#NICE="--nicelevel 15"
+
+# Cronjob
+# Set to anything but 0 to enable the cron job to automatically update
+# spamassassin's rules on a nightly basis
+CRON=1
+
+EOF
+    service spamassassin start
 }
 
 users_go() {
@@ -145,6 +268,10 @@ mysql_go() {
     echo "CREATE USER 'ontar026_blog'@'localhost' IDENTIFIED BY 'changeme';" | mysql -u root --password=root
     echo "CREATE DATABASE ontar026_wordpress;" | mysql -u root --password=root
     echo "GRANT ALL PRIVILEGES ON ontar026_wordpress.* TO ontar026_blog;" | mysql -u root --password=root
+
+    echo "CREATE USER 'civicrm'@'localhost' IDENTIFIED BY 'changeme';" | mysql -u root --password=root
+    echo "CREATE DATABASE civicrm;" | mysql -u root --password=root
+    echo "GRANT ALL PRIVILEGES ON civicrm.* TO civicrm;" | mysql -u root --password=root
 
     service mysql restart
     update-rc.d apache2 enable
